@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Plus, Edit2, Trash2, X } from "lucide-react"
 import { MemberFormModal } from "@/components/member-form-modal"
+import axios from "axios"
 
 interface MembersPageProps {
   userRole: string
@@ -16,71 +17,86 @@ interface MembersPageProps {
   onLogout: () => void
 }
 
-const initialMembers = [
-  {
-    id: "M001",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "9876543210",
-    status: "Active",
-  },
-  {
-    id: "M002",
-    name: "Sarah Williams",
-    email: "sarah.w@example.com",
-    phone: "9876543211",
-    status: "Active",
-  },
-  {
-    id: "M003",
-    name: "Robert Johnson",
-    email: "robert.j@example.com",
-    phone: "9876543212",
-    status: "Inactive",
-  },
-  {
-    id: "M004",
-    name: "Emma Brown",
-    email: "emma.brown@example.com",
-    phone: "9876543213",
-    status: "Active",
-  },
-  {
-    id: "M005",
-    name: "Michael Davis",
-    email: "michael.d@example.com",
-    phone: "9876543214",
-    status: "Active",
-  },
-]
+interface Member {
+  id: string
+  userId: string
+  name: string
+  email: string
+  phone: string
+  status: string
+  borrowingLimit: number
+  user?: {          // optional in case it's not loaded yet
+    id: string
+    name: string
+    email: string
+  }
+}
+
+const API_URL = "http://localhost:5000/members" // Replace with your backend URL
 
 export function MembersPage({ userRole, onNavigate, onLogout }: MembersPageProps) {
-  const [members, setMembers] = useState(initialMembers)
+  const [members, setMembers] = useState<Member[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [showModal, setShowModal] = useState(false)
-  const [editingMember, setEditingMember] = useState(null)
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const filteredMembers = members.filter(
-    (member) =>
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const handleAddMember = (newMember: any) => {
-    if (editingMember) {
-      setMembers(members.map((m) => (m.id === editingMember.id ? { ...newMember, id: m.id } : m)))
-    } else {
-      setMembers([...members, { ...newMember, id: `M${String(members.length + 1).padStart(3, "0")}` }])
+  // Fetch members from backend
+  const fetchMembers = async () => {
+    try {
+      setLoading(true)
+      const response = await axios.get(API_URL)
+      setMembers(response.data)
+    } catch (error) {
+      console.error("Error fetching members:", error)
+    } finally {
+      setLoading(false)
     }
-    setShowModal(false)
-    setEditingMember(null)
   }
 
-  const handleDeleteMember = (id: string) => {
-    setMembers(members.filter((m) => m.id !== id))
+  useEffect(() => {
+    fetchMembers()
+    debugger;
+  }, [])
+
+ const filteredMembers = members.filter((member) => {
+  const name = typeof member.name === "string" ? member.name.toLowerCase() : "";
+  const email = typeof member.email === "string" ? member.email.toLowerCase() : "";
+  return name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+});
+
+
+  // Add or Update member
+  const handleAddMember = async (newMember: any) => {
+    try {
+      if (editingMember) {
+        const response = await axios.put(`${API_URL}/${editingMember.id}`, newMember)
+        setMembers(members.map((m) => (m.id === editingMember.id ? response.data : m)))
+      } else {
+        const response = await axios.post(API_URL, newMember)
+        setMembers([...members, response.data])
+      }
+    } catch (error) {
+      console.error("Error saving member:", error)
+    } finally {
+      setShowModal(false)
+      setEditingMember(null)
+    }
   }
 
-  const handleEditMember = (member: any) => {
+ const handleDeleteMember = async (id: string) => {
+  const confirmed = window.confirm("Are you sure you want to delete this member?");
+  if (!confirmed) return;
+
+  try {
+    await axios.delete(`${API_URL}/${id}`);
+    setMembers(members.filter((m) => m.id !== id));
+  } catch (error) {
+    console.error("Error deleting member:", error);
+  }
+}
+
+  const handleEditMember = (member: Member) => {
     setEditingMember(member)
     setShowModal(true)
   }
@@ -147,15 +163,21 @@ export function MembersPage({ userRole, onNavigate, onLogout }: MembersPageProps
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredMembers.length > 0 ? (
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={canModify ? 6 : 5} className="text-center py-8">
+                          Loading members...
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredMembers.length > 0 ? (
                       filteredMembers.map((member) => (
                         <TableRow
                           key={member.id}
                           className="border-b border-border hover:bg-secondary/30 transition-colors"
                         >
                           <TableCell className="font-medium text-primary">{member.id}</TableCell>
-                          <TableCell className="font-medium">{member.name}</TableCell>
-                          <TableCell className="text-sm">{member.email}</TableCell>
+                          <TableCell className="font-medium">{member.user?.name}</TableCell>
+                          <TableCell className="text-sm">{member.user?.email}</TableCell>
                           <TableCell className="text-sm">{member.phone}</TableCell>
                           <TableCell>
                             <span

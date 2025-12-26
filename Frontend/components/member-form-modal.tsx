@@ -1,29 +1,27 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Check } from "lucide-react"
-
+import { getUsers } from "../lib/api/users" // Your API file
 interface MemberFormModalProps {
   member: any
   onSave: (member: any) => void
   onClose: () => void
   existingMembers?: any[]
 }
-
-// Dummy users data (non-members)
-const dummyUsers = [
-  { id: "U001", fullName: "Alice Johnson", email: "alice.j@example.com", role: "Member" },
-  { id: "U002", fullName: "David Smith", email: "david.s@example.com", role: "Member" },
-  { id: "U003", fullName: "Carol White", email: "carol.w@example.com", role: "Member" },
-  { id: "U004", fullName: "Eve Martinez", email: "eve.m@example.com", role: "Member" },
-  { id: "U005", fullName: "Frank Taylor", email: "frank.t@example.com", role: "Member" },
-]
-
+interface User {
+  id: string
+  name?: string
+  email?: string
+  role: string
+  status: string
+  createdAt: Date
+}
 export function MemberFormModal({ member, onSave, onClose, existingMembers = [] }: MemberFormModalProps) {
   const [formData, setFormData] = useState({
     userId: member?.userId || "",
@@ -36,36 +34,45 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
   const [searchTerm, setSearchTerm] = useState("")
   const [showUserList, setShowUserList] = useState(!member)
   const [selectedUser, setSelectedUser] = useState(
-    member ? { id: member.userId, fullName: member.name, email: member.email } : null,
+    member ? { id: member.userId, name: member.name, email: member.email } : null,
   )
+  const [users, setUsers] = useState<any[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const availableUsers = useMemo(() => {
-    const memberUserIds = existingMembers.map((m) => m.userId)
-    return dummyUsers.filter((user) => !memberUserIds.includes(user.id))
+  // Fetch all users from backend
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const allUsers = await getUsers()
+      // Only non-members
+      const memberIds = existingMembers.map((m) => m.userId)
+      setUsers(allUsers.filter((u: User) => u.role === "MEMBER" && !memberIds.includes(u.id)))
+    }
+    fetchUsers()
   }, [existingMembers])
 
+  // Update membership number when a user is selected
+  useEffect(() => {
+    if (selectedUser) {
+      setFormData((prev) => ({
+        ...prev,
+        userId: selectedUser.id,
+        membershipNumber: selectedUser.id, // Membership number = user id
+      }))
+    }
+  }, [selectedUser])
+
   const filteredUsers = useMemo(() => {
-    return availableUsers.filter(
+    return users.filter(
       (user) =>
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-  }, [searchTerm, availableUsers])
+  }, [searchTerm, users])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-
-    if (!selectedUser) {
-      newErrors.user = "Please select a user"
-    }
-    if (!formData.membershipNumber.trim()) {
-      newErrors.membershipNumber = "Membership Number is required"
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone Number is required"
-    }
-
+    if (!selectedUser) newErrors.user = "Please select a user"
+    if (!formData.phone.trim()) newErrors.phone = "Phone Number is required"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -77,26 +84,16 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
   }
 
   const handleSubmit = (e: React.FormEvent) => {
+    debugger;
     e.preventDefault()
     if (validateForm() && selectedUser) {
-      const submitData = member
-        ? {
-            ...member,
-            membershipNumber: formData.membershipNumber,
-            phone: formData.phone,
-            status: formData.status,
-            borrowingLimit: formData.borrowingLimit,
-          }
-        : {
-            userId: selectedUser.id,
-            id: `M${String(Math.random() * 1000).padStart(3, "0")}`,
-            name: selectedUser.fullName,
-            email: selectedUser.email,
-            phone: formData.phone,
-            membershipNumber: formData.membershipNumber,
-            status: formData.status,
-            borrowingLimit: formData.borrowingLimit,
-          }
+      const submitData = {
+        userId: selectedUser.id,
+  membershipNumber: selectedUser.id,
+        phone: formData.phone,
+        status: formData.status.toUpperCase(),
+        borrowingLimit: Number(formData.borrowingLimit),
+      }
       onSave(submitData)
     }
   }
@@ -115,7 +112,7 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
               {selectedUser ? (
                 <div className="border border-border rounded-lg p-3 bg-secondary/50 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{selectedUser.fullName}</p>
+                    <p className="font-medium text-foreground">{selectedUser.name}</p>
                     <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
                   </div>
                   <button
@@ -154,7 +151,7 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
                             className="w-full text-left px-4 py-2 hover:bg-secondary transition-colors flex items-start justify-between"
                           >
                             <div>
-                              <p className="font-medium text-foreground">{user.fullName}</p>
+                              <p className="font-medium text-foreground">{user.name}</p>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                             <Check className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
@@ -162,7 +159,7 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
                         ))
                       ) : (
                         <div className="px-4 py-3 text-center text-muted-foreground text-sm">
-                          {availableUsers.length === 0 ? "No users available" : "No matching users found"}
+                          {users.length === 0 ? "No users available" : "No matching users found"}
                         </div>
                       )}
                     </div>
@@ -179,11 +176,9 @@ export function MemberFormModal({ member, onSave, onClose, existingMembers = [] 
             <Input
               id="membershipNumber"
               value={formData.membershipNumber}
-              onChange={(e) => setFormData({ ...formData, membershipNumber: e.target.value })}
-              placeholder="e.g., MEM001"
-              className="bg-background"
+              readOnly
+              className="bg-background cursor-not-allowed text-muted-foreground"
             />
-            {errors.membershipNumber && <p className="text-sm text-red-600">{errors.membershipNumber}</p>}
           </div>
 
           {/* Phone Number */}

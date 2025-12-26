@@ -13,7 +13,7 @@ export enum UserStatus {
 
 @Entity('users')  // table name in DB
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @Column({ primary: true, unique: true })
   id: string;
 
   @Column()

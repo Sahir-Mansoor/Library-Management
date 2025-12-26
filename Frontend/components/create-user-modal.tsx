@@ -1,74 +1,105 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import axios from "axios";
+import { useState } from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle } from "lucide-react";
 
 interface CreateUserModalProps {
-  user?: any
-  onSave: (user: any) => void
-  onClose: () => void
+  user?: any;
+  onSave: (user: any) => void;
+  onClose: () => void;
 }
 
-export function CreateUserModal({ user, onSave, onClose }: CreateUserModalProps) {
+export function CreateUserModal({
+  user,
+  onSave,
+  onClose,
+}: CreateUserModalProps) {
   const [formData, setFormData] = useState({
-    fullName: user?.fullName || "",
+    name: user?.name || "",
     email: user?.email || "",
     password: "",
-    role: user?.role || "Member",
-    memberId: user?.memberId || "",
-    status: user?.status || "Active",
-  })
+    role: user?.role || "MEMBER",
+    status: user?.status || "ACTIVE",
+  });
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full Name is required"
+    if (!formData.name.trim()) {
+      newErrors.name = "Full Name is required";
     }
+
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email"
+      newErrors.email = "Please enter a valid email";
     }
+
     if (!user && !formData.password) {
-      newErrors.password = "Password is required"
+      newErrors.password = "Password is required";
     } else if (!user && formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters"
-    }
-    if (formData.role === "Member" && !formData.memberId.trim()) {
-      newErrors.memberId = "Member ID is required for Members"
+      newErrors.password = "Password must be at least 6 characters";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (validateForm()) {
-      const submitData = user
-        ? {
-            ...user,
-            fullName: formData.fullName,
-            email: formData.email,
-            role: formData.role,
-            status: formData.status,
-            memberId: formData.memberId,
-          }
-        : {
-            ...formData,
-            createdDate: new Date(),
-          }
-      onSave(submitData)
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!validateForm()) return;
+
+  try {
+    let payload;
+
+    if (user && user.id) {
+      // UPDATE USER
+      payload = {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role.toUpperCase(),   // ensure enum format
+        status: formData.status.toUpperCase(), // ensure enum format
+      };
+      console.log("Updating user with payload:", payload);
+      const response = await axios.put(
+        `http://localhost:5000/users/${user.id}`,
+        payload
+      );
+      onSave(response.data);
+    } else {
+      // CREATE USER
+      payload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role.toUpperCase(),   // ensure enum format
+        status: formData.status.toUpperCase(), // ensure enum format
+      };
+      console.log("Creating user with payload:", payload);
+      const response = await axios.post("http://localhost:5000/users", payload);
+      onSave(response.data);
     }
+
+    onClose();
+  } catch (error) {
+    console.error("Error saving user:", error);
+    alert("Failed to save user. Check console for details.");
   }
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -80,7 +111,7 @@ export function CreateUserModal({ user, onSave, onClose }: CreateUserModalProps)
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           {!user && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
               <p className="text-sm text-blue-700">
                 <strong>Note:</strong> Role cannot be changed after creation.
               </p>
@@ -89,113 +120,114 @@ export function CreateUserModal({ user, onSave, onClose }: CreateUserModalProps)
 
           {/* Full Name */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Full Name *</label>
+            <label className="block text-sm font-medium mb-2">
+              Full Name *
+            </label>
             <Input
               type="text"
-              value={formData.fullName}
-              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               placeholder="Enter full name"
-              className="w-full"
             />
-            {errors.fullName && <p className="text-sm text-red-600 mt-1">{errors.fullName}</p>}
+            {errors.name && (
+              <p className="text-sm text-red-600 mt-1">{errors.name}</p>
+            )}
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Email *</label>
+            <label className="block text-sm font-medium mb-2">
+              Email *
+            </label>
             <Input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               placeholder="Enter email address"
-              className="w-full"
             />
-            {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
+            {errors.email && (
+              <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+            )}
           </div>
 
           {/* Password */}
           {!user && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Password *</label>
+              <label className="block text-sm font-medium mb-2">
+                Password *
+              </label>
               <Input
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter password (min 6 characters)"
-                className="w-full"
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="Minimum 6 characters"
               />
-              {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.password}
+                </p>
+              )}
             </div>
           )}
 
           {/* Role */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Role *</label>
+            <label className="block text-sm font-medium mb-2">
+              Role *
+            </label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               disabled={!!user}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary"
+              onChange={(e) =>
+                setFormData({ ...formData, role: e.target.value })
+              }
+              className="w-full px-3 py-2 border rounded-lg"
             >
-              <option value="Member">Member - View-only access</option>
-              <option value="Librarian">Librarian - Management permissions</option>
-              <option value="Admin">Admin - Full system access</option>
+              <option value="MEMBER">Member - View only</option>
+              <option value="LIBRARIAN">Librarian</option>
+              <option value="ADMIN">Admin</option>
             </select>
           </div>
 
-          {/* Member ID */}
-          {formData.role === "Member" && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Member ID *</label>
-              <Input
-                type="text"
-                value={formData.memberId}
-                onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
-                placeholder="e.g., MEM001"
-                className="w-full"
-              />
-              {errors.memberId && <p className="text-sm text-red-600 mt-1">{errors.memberId}</p>}
-            </div>
-          )}
-
-          {/* Employee ID for Librarian/Admin */}
-          {(formData.role === "Librarian" || formData.role === "Admin") && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Employee ID</label>
-              <Input
-                type="text"
-                value={formData.memberId}
-                onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
-                placeholder="e.g., EMP001"
-                className="w-full"
-              />
-            </div>
-          )}
-
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Status *</label>
+            <label className="block text-sm font-medium mb-2">
+              Status *
+            </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value })
+              }
+              className="w-full px-3 py-2 border rounded-lg"
             >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
             </select>
           </div>
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button type="button" onClick={onClose} variant="outline" className="flex-1 bg-transparent">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+            >
               Cancel
             </Button>
-            <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button type="submit" className="flex-1">
               {user ? "Update User" : "Create User"}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

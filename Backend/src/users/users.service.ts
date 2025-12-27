@@ -28,8 +28,22 @@ export class UsersService {
 
     return `${prefix}-${String(nextIdNumber).padStart(3, '0')}`;
   }
+  
 
   async createUser(dto: CreateUserDto): Promise<User> {
+    // 0️⃣ Validate required fields
+  if (!dto.password) {
+    throw new Error('Password is required'); // Or use NestJS BadRequestException
+  }
+  if (!dto.email) {
+    throw new Error('Email is required');
+  }
+  if (!dto.name) {
+    throw new Error('Name is required');
+  }
+  if (!dto.role) {
+    throw new Error('Role is required');
+  }
   // 1️⃣ Generate next ID based on role
   const id = await this.generateNextUserId(dto.role);
 

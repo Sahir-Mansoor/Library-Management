@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import axios from "axios"
+
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -14,55 +16,91 @@ interface FinesPageProps {
   onLogout: () => void
 }
 
-const initialFines = [
-  {
-    id: "F001",
-    memberName: "John Doe",
-    bookTitle: "The Great Gatsby",
-    dueDate: "2024-12-15",
-    daysLate: 10,
-    fineAmount: 100,
-    status: "Pending",
-  },
-  {
-    id: "F002",
-    memberName: "Robert Johnson",
-    bookTitle: "To Kill a Mockingbird",
-    dueDate: "2024-12-20",
-    daysLate: 5,
-    fineAmount: 50,
-    status: "Pending",
-  },
-  {
-    id: "F003",
-    memberName: "Sarah Williams",
-    bookTitle: "1984",
-    dueDate: "2024-12-10",
-    daysLate: 15,
-    fineAmount: 150,
-    status: "Paid",
-  },
-  {
-    id: "F004",
-    memberName: "Michael Davis",
-    bookTitle: "The Hobbit",
-    dueDate: "2024-12-05",
-    daysLate: 20,
-    fineAmount: 200,
-    status: "Pending",
-  },
-]
+interface IssuedBook {
+  id: string
+  user: { id: string; name: string }
+  book: { id: string; title: string }
+  issueDate: string
+  dueDate: string
+  returnDate?: string | null
+  status: "ISSUED" | "RETURNED"
+}
+
+interface Fine {
+  id: string
+  memberName: string
+  bookTitle: string
+  dueDate: string
+  daysLate: number
+  fineAmount: number
+  status: "Pending" | "Paid"
+}
 
 export function FinesPage({ userRole, onNavigate, onLogout }: FinesPageProps) {
-  const [fines, setFines] = useState(initialFines)
+  const [issuedBooks, setIssuedBooks] = useState<IssuedBook[]>([])
+  const [fines, setFines] = useState<Fine[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const API_BASE = "http://localhost:5000"
+  const ISSUE_API = `${API_BASE}/book-issue`
+
+  // Fetch issued books from backend
+  useEffect(() => {
+    fetchIssuedBooks()
+  }, [])
+
+  const fetchIssuedBooks = async () => {
+    try {
+      setLoading(true)
+      const res = await axios.get<IssuedBook[]>(ISSUE_API)
+      setIssuedBooks(res.data)
+      generateFines(res.data)
+    } catch (err) {
+      console.error("Failed to fetch issued books:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate fines dynamically
+  const calculateFine = (dueDate: string, returnDate?: string | null) => {
+    const due = new Date(dueDate)
+    const today = returnDate ? new Date(returnDate) : new Date()
+    const diffTime = today.getTime() - due.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays > 0 ? diffDays * 10 : 0
+  }
+
+  // Generate fines list
+  const generateFines = (books: IssuedBook[]) => {
+    const fineList: Fine[] = books.map((b) => {
+      const daysLate = Math.max(
+        0,
+        Math.ceil(
+          ((b.returnDate ? new Date(b.returnDate) : new Date()).getTime() - new Date(b.dueDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      )
+      const fineAmount = daysLate * 10
+      return {
+        id: b.id,
+        memberName: b.user.name,
+        bookTitle: b.book.title,
+        dueDate: new Date(b.dueDate).toLocaleDateString(),
+        daysLate,
+        fineAmount,
+        status: b.status === "RETURNED" ? "Paid" : daysLate > 0 ? "Pending" : "Paid",
+      }
+    })
+    setFines(fineList)
+  }
 
   const handleMarkAsPaid = (id: string) => {
-    setFines(fines.map((fine) => (fine.id === id ? { ...fine, status: "Paid" } : fine)))
+    setFines(fines.map((f) => (f.id === id ? { ...f, status: "Paid" } : f)))
   }
 
   const pendingFines = fines.filter((f) => f.status === "Pending")
   const paidFines = fines.filter((f) => f.status === "Paid")
-
   const totalPendingFine = pendingFines.reduce((sum, f) => sum + f.fineAmount, 0)
 
   return (
@@ -77,7 +115,7 @@ export function FinesPage({ userRole, onNavigate, onLogout }: FinesPageProps) {
               <p className="text-muted-foreground mt-2">Track and manage overdue book fines</p>
             </div>
 
-            {/* Fine Summary Cards */}
+            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <Card className="border-0 shadow-sm p-6 bg-red-50 border-l-4 border-red-600">
                 <div className="flex items-center justify-between">

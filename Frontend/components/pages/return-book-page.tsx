@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import axios from "axios"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -14,69 +15,72 @@ interface ReturnBookPageProps {
   onLogout: () => void
 }
 
-const initialIssuedBooks = [
-  {
-    id: "I001",
-    memberId: "M001",
-    memberName: "John Doe",
-    bookTitle: "The Great Gatsby",
-    issueDate: "2024-12-01",
-    dueDate: "2024-12-15",
-    status: "Overdue",
-  },
-  {
-    id: "I002",
-    memberId: "M002",
-    memberName: "Sarah Williams",
-    bookTitle: "1984",
-    issueDate: "2024-12-05",
-    dueDate: "2024-12-19",
-    status: "Active",
-  },
-  {
-    id: "I003",
-    memberId: "M003",
-    memberName: "Robert Johnson",
-    bookTitle: "To Kill a Mockingbird",
-    issueDate: "2024-12-03",
-    dueDate: "2024-12-20",
-    status: "Overdue",
-  },
-  {
-    id: "I004",
-    memberId: "M004",
-    memberName: "Emma Brown",
-    bookTitle: "The Hobbit",
-    issueDate: "2024-12-10",
-    dueDate: "2024-12-24",
-    status: "Active",
-  },
-]
+interface IssueBook {
+  id: string
+  issueDate: string
+  dueDate: string
+  returnDate?: string
+  status: "ISSUED" | "RETURNED" | "OVERDUE"
+  fine? : number
+  user: {
+    id: string
+    name: string
+  }
+  book: {
+    id: string
+    title: string
+  }
+}
+
+const API_BASE = "http://localhost:5000"
+const ISSUE_API = `${API_BASE}/book-issue`
 
 export function ReturnBookPage({ userRole, onNavigate, onLogout }: ReturnBookPageProps) {
-  const [issuedBooks, setIssuedBooks] = useState(initialIssuedBooks)
-  const [returnedBooks, setReturnedBooks] = useState<any[]>([])
+  const [issuedBooks, setIssuedBooks] = useState<IssueBook[]>([])
+  const [returnedBooks, setReturnedBooks] = useState<IssueBook[]>([])
 
-  const calculateFine = (dueDate: string): number => {
+  useEffect(() => {
+    fetchIssuedBooks()
+  }, [])
+
+  const fetchIssuedBooks = async () => {
+    try {
+      const res = await axios.get(ISSUE_API)
+      const activeBooks = res.data.filter((b: IssueBook) => b.status === "ISSUED")
+      setIssuedBooks(activeBooks)
+    } catch (err) {
+      console.error("Failed to fetch issued books", err)
+    }
+  }
+
+  const calculateFine = (dueDate: string) => {
     const due = new Date(dueDate)
     const today = new Date()
     const diffTime = today.getTime() - due.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays * 10 : 0 // ₹10 per day fine
+    return diffDays > 0 ? diffDays * 10 : 0
   }
 
-  const handleReturnBook = (book: any) => {
-    const fine = calculateFine(book.dueDate)
+  const handleReturnBook = async (book: IssueBook) => {
+  const fine = calculateFine(book.dueDate)
+  const returnDate = new Date().toISOString()
+
+  try {
+    // ✅ Correct POST URL
+    await axios.post(`${ISSUE_API}/return/${book.id}`)
+
+    // Move book from issuedBooks to returnedBooks
     setReturnedBooks([
       ...returnedBooks,
-      {
-        ...book,
-        returnDate: new Date().toISOString().split("T")[0],
-        fine: fine,
-      },
+      { ...book, returnDate, status: "RETURNED" },
     ])
     setIssuedBooks(issuedBooks.filter((b) => b.id !== book.id))
+  } catch (err) {
+    console.error("Failed to return book:", err)
+    alert("Failed to return book")
   }
+}
+
 
   return (
     <div className="flex h-screen bg-background">
@@ -117,10 +121,10 @@ export function ReturnBookPage({ userRole, onNavigate, onLogout }: ReturnBookPag
                             key={book.id}
                             className="border-b border-border hover:bg-secondary/30 transition-colors"
                           >
-                            <TableCell className="font-medium">{book.memberName}</TableCell>
-                            <TableCell className="font-medium">{book.bookTitle}</TableCell>
-                            <TableCell className="text-sm">{book.issueDate}</TableCell>
-                            <TableCell className="text-sm">{book.dueDate}</TableCell>
+                            <TableCell className="font-medium">{book.user.name}</TableCell>
+                            <TableCell className="font-medium">{book.book.title}</TableCell>
+                            <TableCell className="text-sm">{new Date(book.issueDate).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-sm">{new Date(book.dueDate).toLocaleDateString()}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {fine > 0 && <AlertCircle className="w-4 h-4 text-red-600" />}
@@ -184,13 +188,14 @@ export function ReturnBookPage({ userRole, onNavigate, onLogout }: ReturnBookPag
                           key={book.id}
                           className="border-b border-border hover:bg-secondary/30 transition-colors"
                         >
-                          <TableCell className="font-medium">{book.memberName}</TableCell>
-                          <TableCell className="font-medium">{book.bookTitle}</TableCell>
-                          <TableCell className="text-sm">{book.dueDate}</TableCell>
-                          <TableCell className="text-sm">{book.returnDate}</TableCell>
-                          <TableCell className={`font-semibold text-center ${book.fine > 0 ? "text-red-600" : ""}`}>
-                            {book.fine}
-                          </TableCell>
+                          <TableCell className="font-medium">{book.user.name}</TableCell>
+                          <TableCell className="font-medium">{book.book.title}</TableCell>
+                          <TableCell className="text-sm">{new Date(book.dueDate).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-sm">{new Date(book.returnDate!).toLocaleDateString()}</TableCell>
+                          <TableCell className={`font-semibold text-center ${calculateFine(book.dueDate) > 0 ? "text-red-600" : ""}`}>
+  {calculateFine(book.dueDate)}
+</TableCell>
+
                         </TableRow>
                       ))}
                     </TableBody>

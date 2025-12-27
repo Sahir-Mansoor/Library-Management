@@ -8,6 +8,8 @@ import { MembersModule } from './members/members.module';
 import { Member } from './members/entities/member.entity';
 import { Book } from './books/entities/books.entity';
 import { BooksModule } from './books/books.module';
+import { BookIssue } from './book-issue/entities/book-issue.entity';
+import { BookIssueModule } from './book-issue/book-issue.module';
 
 @Module({
   imports: [
@@ -18,12 +20,13 @@ import { BooksModule } from './books/books.module';
       username: 'postgres',      // your DB username
       password: 'sahir123',  // your DB password
       database: 'library',       // DB we just created
-      entities: [User, Member, Book],
+      entities: [User, Member, Book, BookIssue],
       synchronize: true,         // auto-create tables
     }),
     UsersModule,
     MembersModule,
-    BooksModule
+    BooksModule,
+    BookIssueModule
   ],
   controllers: [AppController],
   providers: [AppService],

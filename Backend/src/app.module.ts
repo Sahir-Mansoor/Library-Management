@@ -10,6 +10,8 @@ import { Book } from './books/entities/books.entity';
 import { BooksModule } from './books/books.module';
 import { BookIssue } from './book-issue/entities/book-issue.entity';
 import { BookIssueModule } from './book-issue/book-issue.module';
+import { AuthModule } from './auth/auth.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -26,7 +28,9 @@ import { BookIssueModule } from './book-issue/book-issue.module';
     UsersModule,
     MembersModule,
     BooksModule,
-    BookIssueModule
+    BookIssueModule,
+    AuthModule,
+    DashboardModule
   ],
   controllers: [AppController],
   providers: [AppService],

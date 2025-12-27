@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { BookOpen } from "lucide-react"
-import { validateCredentials } from "@/lib/auth-data"
+import axios from "axios"
 
 interface LoginPageProps {
   onLogin: (role: string, name: string) => void
@@ -19,20 +19,23 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
 
-    const user = validateCredentials(email, password)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError('')
+  setIsLoading(true)
 
-    if (user) {
-      onLogin(user.role, user.name)
-    } else {
-      setError("Invalid email or password")
-      setIsLoading(false)
-    }
+  try {
+    const res = await axios.post('http://localhost:5000/auth/login', { email, password })
+    const user = res.data
+    onLogin(user.role, user.name)
+  } catch (err: any) {
+    setError(err.response?.data?.message)
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5 flex items-center justify-center p-4">

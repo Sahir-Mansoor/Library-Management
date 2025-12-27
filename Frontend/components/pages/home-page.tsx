@@ -109,7 +109,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                   }}
                   size="lg"
                   variant="outline"
-                  className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
+className="bg-red-500 border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
                 >
                   Explore Library
                 </Button>

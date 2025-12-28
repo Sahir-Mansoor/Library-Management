@@ -50,6 +50,14 @@ async findAll() {
       order: { issueDate: 'DESC' }, // optional: newest first
     });
   }
+  async findByUser(userId: string) {
+  return this.bookIssueRepository.find({
+    where: { user: { id: userId } }, // filter by user id
+    relations: ['user', 'book'],    // include related book and user data
+    order: { issueDate: 'DESC' },   // newest first
+  });
+}
+
   async returnBook(issueId: string) {
     const issue = await this.issueRepo.findOne({ where: { id: issueId } })
     if (!issue) throw new Error('Issue record not found')

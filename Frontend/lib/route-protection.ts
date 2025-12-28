@@ -12,7 +12,6 @@ export const rolePermissions: Record<UserRole, string[]> = {
     "browse-books",
     "issued-books",
     "my-fines",
-    "borrowing-history",
     "profile",
   ],
   LIBRARIAN: [
@@ -22,14 +21,9 @@ export const rolePermissions: Record<UserRole, string[]> = {
     "issue-book",
     "return-book",
     "fines",
-    "users",
-    "browse-books",
-    "issued-books",
-    "my-fines",
-    "borrowing-history",
     "profile",
   ],
-  MEMBER: ["dashboard", "browse-books", "issued-books", "my-fines", "borrowing-history", "profile"],
+  MEMBER: ["dashboard", "browse-books", "issued-books", "my-fines",  "profile"],
 }
 
 export function canAccessPage(userRole: string, pageId: string): boolean {

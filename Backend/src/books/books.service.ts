@@ -15,6 +15,16 @@ export class BooksService {
   findAll() {
     return this.bookRepo.find();
   }
+   async getCategories(): Promise<string[]> {
+    const result = await this.bookRepo
+      .createQueryBuilder('book')
+      .select('DISTINCT book.category', 'category')
+      .where('book.category IS NOT NULL')
+      .orderBy('book.category', 'ASC')
+      .getRawMany();
+
+    return result.map(row => row.category);
+  }
 
   findOne(id: string) {
     return this.bookRepo.findOne({ where: { id } });

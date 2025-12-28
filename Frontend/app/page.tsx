@@ -14,7 +14,6 @@ import { MemberDashboardPage } from "@/components/pages/member-dashboard-page"
 import { MemberBrowseBooksPage } from "@/components/pages/member-browse-books-page"
 import { MemberIssuedBooksPage } from "@/components/pages/member-issued-books-page"
 import { MemberFinesPage } from "@/components/pages/member-fines-page"
-import { MemberBorrowingHistoryPage } from "@/components/pages/member-borrowing-history-page"
 import { MemberProfilePage } from "@/components/pages/member-profile-page"
 import { AccessDeniedPage } from "@/components/access-denied-page"
 import { canAccessPage } from "@/lib/route-protection"
@@ -32,26 +31,28 @@ type Page =
   | "browse-books"
   | "issued-books"
   | "my-fines"
-  | "borrowing-history"
   | "profile"
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<Page>("home")
   const [userRole, setUserRole] = useState<string>("")
   const [userName, setUserName] = useState<string>("")
+const [userId, setUserId] = useState("")
 
-  const handleLogin = (role: string, name: string) => {
+  const handleLogin = (role: string, name: string, userId: string) => {
+     const normalizedRole = role.toUpperCase()
     setUserRole(role)
     setUserName(name)
+    setUserId(userId)  // Store userId)
     setCurrentPage(role === "member" ? "dashboard" : "dashboard")
   }
 
   const handleNavigate = (page: string) => {
     if (userRole && !canAccessPage(userRole, page)) {
-      console.log(`[v0] Access denied for ${userRole} to page ${page}`)
-      return
-    }
-    setCurrentPage(page as Page)
+    console.log(`Access denied for ${userRole} to page ${page}`)
+    return
+  }
+  setCurrentPage(page as Page)
   }
 
   const handleLogout = () => {
@@ -73,7 +74,7 @@ export default function Home() {
       {currentPage === "login" && <LoginPage onLogin={handleLogin} />}
 
       {/* Admin/Librarian Routes */}
-      {userRole !== "member" && (
+      {userRole !== "MEMBER" && (
         <>
           {currentPage === "dashboard" && (
             <DashboardPage
@@ -105,7 +106,7 @@ export default function Home() {
       )}
 
       {/* Member Routes */}
-      {userRole === "member" && (
+      {userRole === "MEMBER" && (
         <>
           {currentPage === "dashboard" && (
             <MemberDashboardPage
@@ -119,18 +120,16 @@ export default function Home() {
             <MemberBrowseBooksPage userRole={userRole} onNavigate={handleNavigate} onLogout={handleLogout} />
           )}
           {currentPage === "issued-books" && (
-            <MemberIssuedBooksPage userRole={userRole} onNavigate={handleNavigate} onLogout={handleLogout} />
+            <MemberIssuedBooksPage userRole={userRole} userId={userId} onNavigate={handleNavigate} onLogout={handleLogout} />
           )}
           {currentPage === "my-fines" && (
-            <MemberFinesPage userRole={userRole} onNavigate={handleNavigate} onLogout={handleLogout} />
+            <MemberFinesPage userRole={userRole}  userId={userId} onNavigate={handleNavigate} onLogout={handleLogout} />
           )}
-          {currentPage === "borrowing-history" && (
-            <MemberBorrowingHistoryPage userRole={userRole} onNavigate={handleNavigate} onLogout={handleLogout} />
-          )}
+       
           {currentPage === "profile" && (
             <MemberProfilePage
               userRole={userRole}
-              userName={userName}
+              userId={userId}
               onNavigate={handleNavigate}
               onLogout={handleLogout}
             />

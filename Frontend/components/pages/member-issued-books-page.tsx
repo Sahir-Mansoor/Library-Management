@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Card } from "@/components/ui/card"
@@ -8,38 +9,54 @@ import { AlertCircle } from "lucide-react"
 
 interface MemberIssuedBooksPageProps {
   userRole: string
+  userId: string      // Add userId prop
   onNavigate: (page: string) => void
   onLogout: () => void
 }
 
-const issuedBooks = [
-  {
-    id: "I001",
-    title: "The Great Gatsby",
-    issueDate: "2024-01-10",
-    dueDate: "2024-01-24",
-    status: "On Time",
-    isOverdue: false,
-  },
-  {
-    id: "I002",
-    title: "1984",
-    issueDate: "2024-01-05",
-    dueDate: "2024-01-19",
-    status: "Overdue",
-    isOverdue: true,
-  },
-  {
-    id: "I003",
-    title: "To Kill a Mockingbird",
-    issueDate: "2024-01-12",
-    dueDate: "2024-01-26",
-    status: "On Time",
-    isOverdue: false,
-  },
-]
+interface IssuedBook {
+  id: string
+  book: {
+    id: string
+    title: string
+    author: string
+    isbn: string
+    category: string
+  }
+  issueDate: string
+  dueDate: string
+  status: string
+  returnDate?: string
+}
 
-export function MemberIssuedBooksPage({ userRole, onNavigate, onLogout }: MemberIssuedBooksPageProps) {
+export function MemberIssuedBooksPage({
+  userRole,
+  userId,
+  onNavigate,
+  onLogout,
+}: MemberIssuedBooksPageProps) {
+ const [issuedBooks, setIssuedBooks] = useState<IssuedBook[]>([])
+const [loading, setLoading] = useState(true)
+
+useEffect(() => {
+  debugger;
+  const fetchIssuedBooks = async () => {
+    if (!userId) return // don't fetch if userId is missing
+    try {
+      setLoading(true)
+      const res = await fetch(`http://localhost:5000/book-issue/user/${userId}`)
+      const data = await res.json()
+      setIssuedBooks(data)
+    } catch (err) {
+      console.error("Failed to fetch issued books:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchIssuedBooks()
+}, [userId])
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar currentPage="issued-books" onNavigate={onNavigate} onLogout={onLogout} userRole={userRole} />
@@ -65,29 +82,38 @@ export function MemberIssuedBooksPage({ userRole, onNavigate, onLogout }: Member
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {issuedBooks.length > 0 ? (
-                      issuedBooks.map((book) => (
-                        <TableRow
-                          key={book.id}
-                          className={`border-b border-border transition-colors ${
-                            book.isOverdue ? "bg-red-50/50 hover:bg-red-50/70" : "hover:bg-secondary/30"
-                          }`}
-                        >
-                          <TableCell className="font-medium">{book.title}</TableCell>
-                          <TableCell className="text-sm">{book.issueDate}</TableCell>
-                          <TableCell className="text-sm">{book.dueDate}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                                book.isOverdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                              }`}
-                            >
-                              {book.isOverdue && <AlertCircle className="w-3 h-3" />}
-                              {book.status}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <p className="text-muted-foreground">Loading issued books...</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : issuedBooks.length > 0 ? (
+                      issuedBooks.map((book) => {
+                        const isOverdue = new Date(book.dueDate) < new Date() && book.status !== "RETURNED"
+                        return (
+                          <TableRow
+                            key={book.id}
+                            className={`border-b border-border transition-colors ${
+                              isOverdue ? "bg-red-50/50 hover:bg-red-50/70" : "hover:bg-secondary/30"
+                            }`}
+                          >
+                            <TableCell className="font-medium">{book.book.title}</TableCell>
+                            <TableCell className="text-sm">{new Date(book.issueDate).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-sm">{new Date(book.dueDate).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <span
+                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                                  isOverdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {isOverdue && <AlertCircle className="w-3 h-3" />}
+                                {book.status}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-8">

@@ -10,7 +10,7 @@ import { BookOpen } from "lucide-react"
 import axios from "axios"
 
 interface LoginPageProps {
-  onLogin: (role: string, name: string) => void
+  onLogin: (role: string, name: string, userId: string) => void
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -28,7 +28,8 @@ const handleSubmit = async (e: React.FormEvent) => {
   try {
     const res = await axios.post('http://localhost:5000/auth/login', { email, password })
     const user = res.data
-    onLogin(user.role, user.name)
+    debugger;
+    onLogin(user.role, user.name, user.id)
   } catch (err: any) {
     setError(err.response?.data?.message)
   } finally {
@@ -97,18 +98,6 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-xs text-center text-muted-foreground mb-3">Demo Credentials</p>
               <div className="space-y-2 text-xs text-muted-foreground">
-                <div>
-                  <p>
-                    <span className="font-semibold text-foreground">Admin:</span> admin@library.com / admin123
-                  </p>
-                  <p>
-                    <span className="font-semibold text-foreground">Librarian:</span> librarian@library.com /
-                    librarian123
-                  </p>
-                  <p>
-                    <span className="font-semibold text-foreground">Member:</span> member@library.com / member123
-                  </p>
-                </div>
               </div>
             </div>
           </CardContent>

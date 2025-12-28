@@ -10,6 +10,7 @@ import { BookOpen, Users, AlertCircle, BookMarked, TrendingUp } from "lucide-rea
 
 interface DashboardPageProps {
   userRole: string
+  userName: string
   onNavigate: (page: string) => void
   onLogout: () => void
 }

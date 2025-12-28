@@ -34,7 +34,6 @@ export function Sidebar({ currentPage, onNavigate, onLogout, userRole }: Sidebar
     { id: "browse-books", label: "Browse Books", icon: Search },
     { id: "issued-books", label: "My Issued Books", icon: BookMarked },
     { id: "my-fines", label: "My Fines", icon: DollarSign },
-    { id: "borrowing-history", label: "Borrowing History", icon: History },
     { id: "profile", label: "Profile", icon: User },
   ]
 
@@ -48,7 +47,7 @@ export function Sidebar({ currentPage, onNavigate, onLogout, userRole }: Sidebar
     { id: "fines", label: "Fines Management", icon: DollarSign },
   ]
 
-  const menuItems = userRole === "member" ? memberMenuItems : adminMenuItems
+  const menuItems = userRole === "MEMBER" ? memberMenuItems : adminMenuItems
 
   const navItems = (
     <>

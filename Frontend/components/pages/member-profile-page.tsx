@@ -1,56 +1,62 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { User, Mail, Phone, MapPin, Calendar, Lock } from "lucide-react"
+import axios from "axios"
 
 interface MemberProfilePageProps {
   userRole: string
-  userName: string
+  userId: string
   onNavigate: (page: string) => void
   onLogout: () => void
 }
 
-export function MemberProfilePage({ userRole, userName, onNavigate, onLogout }: MemberProfilePageProps) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [passwordMessage, setPasswordMessage] = useState("")
+interface MemberProfile {
+  name: string
+  email: string
+  phone?: string
+  address?: string
+  memberSince: string
+  membershipStatus: string
+  memberId: string
+}
 
-  const memberProfile = {
-    name: userName,
-    email: "john.member@example.com",
-    phone: "+91 9876543210",
-    address: "123 Library Street, City, State 12345",
-    memberSince: "2023-01-15",
-    membershipStatus: "Active",
-    memberId: "M001",
-  }
+export function MemberProfilePage({ userRole, userId, onNavigate, onLogout }: MemberProfilePageProps) {
+  const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const handleChangePassword = () => {
-    if (!newPassword || !confirmPassword) {
-      setPasswordMessage("Please fill in all fields")
-      return
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true)
+        const res = await axios.get(`http://localhost:5000/users/${userId}`)
+        const user = res.data
+        // Map backend response to frontend profile structure
+        setMemberProfile({
+          name: user.name,
+          email: user.email,
+          phone: user.phone || "Not provided",
+          address: user.address || "Not provided",
+          memberSince: new Date(user.createdAt).toLocaleDateString(),
+          membershipStatus: user.status === "ACTIVE" ? "Active" : "Inactive",
+          memberId: user.id,
+        })
+      } catch (err: any) {
+        setError("Failed to load profile")
+      } finally {
+        setLoading(false)
+      }
     }
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage("Passwords do not match")
-      return
-    }
-    if (newPassword.length < 6) {
-      setPasswordMessage("Password must be at least 6 characters")
-      return
-    }
-    setPasswordMessage("Password changed successfully!")
-    setNewPassword("")
-    setConfirmPassword("")
-    setTimeout(() => {
-      setShowPasswordModal(false)
-      setPasswordMessage("")
-    }, 2000)
-  }
+
+    fetchProfile()
+  }, [userId])
+
+  if (loading) return <p className="text-center mt-10">Loading profile...</p>
+  if (error || !memberProfile) return <p className="text-center mt-10 text-red-500">{error}</p>
 
   return (
     <div className="flex h-screen bg-background">
@@ -64,7 +70,6 @@ export function MemberProfilePage({ userRole, userName, onNavigate, onLogout }: 
               <p className="text-muted-foreground mt-2">View your profile information</p>
             </div>
 
-            {/* Profile Card */}
             <Card className="border-0 shadow-sm p-8 mb-6">
               <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 pb-8 border-b border-border">
                 <div className="bg-primary/10 p-6 rounded-lg">
@@ -81,7 +86,6 @@ export function MemberProfilePage({ userRole, userName, onNavigate, onLogout }: 
                 </div>
               </div>
 
-              {/* Profile Details */}
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
                   <Mail className="w-5 h-5 text-primary mt-1" />
@@ -90,15 +94,6 @@ export function MemberProfilePage({ userRole, userName, onNavigate, onLogout }: 
                     <p className="text-foreground">{memberProfile.email}</p>
                   </div>
                 </div>
-
-                <div className="flex items-start gap-4">
-                  <Phone className="w-5 h-5 text-primary mt-1" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <p className="text-foreground">{memberProfile.phone}</p>
-                  </div>
-                </div>
-
                 <div className="flex items-start gap-4">
                   <MapPin className="w-5 h-5 text-primary mt-1" />
                   <div>
@@ -115,84 +110,8 @@ export function MemberProfilePage({ userRole, userName, onNavigate, onLogout }: 
                   </div>
                 </div>
               </div>
-
-              <div className="mt-8 pt-8 border-t border-border">
-                <Button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Lock className="w-4 h-4 mr-2" />
-                  Change Password
-                </Button>
-              </div>
             </Card>
           </div>
-
-          {showPasswordModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-md shadow-lg">
-                <div className="p-6">
-                  <h2 className="text-xl font-bold text-foreground mb-4">Change Password</h2>
-
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">New Password</label>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Confirm Password</label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Confirm new password"
-                        className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-
-                  {passwordMessage && (
-                    <p
-                      className={`text-sm mb-4 p-3 rounded-lg ${
-                        passwordMessage.includes("successfully")
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {passwordMessage}
-                    </p>
-                  )}
-
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleChangePassword}
-                      className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                      Change Password
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowPasswordModal(false)
-                        setNewPassword("")
-                        setConfirmPassword("")
-                        setPasswordMessage("")
-                      }}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
         </main>
       </div>
     </div>

@@ -25,19 +25,29 @@ interface Book {
   availableCopies: number
 }
 
-interface User {
+interface Member {
   id: string
+  userId: string
   name: string
+  email: string
+  phone: string
+  status: string
+  borrowingLimit: number
+  user?: {          // optional in case it's not loaded yet
+    id: string
+    name: string
+    email: string
+  }
 }
 
 const API_BASE = "http://localhost:5000"
 const BOOK_API = `${API_BASE}/books`
-const USER_API = `${API_BASE}/users`
+const USER_API = `${API_BASE}/members`
 const ISSUE_API = `${API_BASE}/book-issue`
 
 export function IssueBookPage({ userRole, onNavigate, onLogout }: IssueBookPageProps) {
   const [books, setBooks] = useState<Book[]>([])
-  const [members, setMembers] = useState<User[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [successMsg, setSuccessMsg] = useState("")
 
@@ -130,7 +140,7 @@ export function IssueBookPage({ userRole, onNavigate, onLogout }: IssueBookPageP
                       <option value="">Choose member...</option>
                       {members.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} ({m.id})
+                          {m.user?.name}
                         </option>
                       ))}
                     </select>

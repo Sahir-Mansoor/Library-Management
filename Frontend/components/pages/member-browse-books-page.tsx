@@ -1,6 +1,7 @@
 "use client"
+import axios from "axios"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
@@ -14,70 +15,56 @@ interface MemberBrowseBooksPageProps {
   onNavigate: (page: string) => void
   onLogout: () => void
 }
+interface Book {
+  id: string
+  title: string
+  author: string
+  category: string
+  totalCopies: number
+  availableCopies: number
+  isbn: string
+}
+const API_BASE = "http://localhost:5000"
+const BOOK_API = `${API_BASE}/books`
+const categories = `${API_BASE}/books/categories`
 
-const initialBooks = [
-  {
-    id: "B001",
-    title: "The Great Gatsby",
-    author: "F. Scott Fitzgerald",
-    category: "Fiction",
-    isbn: "978-0743273565",
-    availableCopies: 2,
-    totalQuantity: 5,
-  },
-  {
-    id: "B002",
-    title: "1984",
-    author: "George Orwell",
-    category: "Fiction",
-    isbn: "978-0451524935",
-    availableCopies: 3,
-    totalQuantity: 8,
-  },
-  {
-    id: "B003",
-    title: "To Kill a Mockingbird",
-    author: "Harper Lee",
-    category: "Classic",
-    isbn: "978-0061120084",
-    availableCopies: 4,
-    totalQuantity: 6,
-  },
-  {
-    id: "B004",
-    title: "The Hobbit",
-    author: "J.R.R. Tolkien",
-    category: "Fantasy",
-    isbn: "978-0547928227",
-    availableCopies: 5,
-    totalQuantity: 7,
-  },
-  {
-    id: "B005",
-    title: "Pride and Prejudice",
-    author: "Jane Austen",
-    category: "Romance",
-    isbn: "978-0141439518",
-    availableCopies: 1,
-    totalQuantity: 4,
-  },
-  {
-    id: "B006",
-    title: "The Catcher in the Rye",
-    author: "J.D. Salinger",
-    category: "Fiction",
-    isbn: "978-0316769174",
-    availableCopies: 0,
-    totalQuantity: 3,
-  },
-]
-
-const categories = ["All", "Fiction", "Classic", "Fantasy", "Romance", "Science Fiction"]
 
 export function MemberBrowseBooksPage({ userRole, onNavigate, onLogout }: MemberBrowseBooksPageProps) {
-  const [books, setBooks] = useState(initialBooks)
+  const [books, setBooks] = useState<Book[]>([])
+  
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
+    const [selectedCategory, setSelectedCategory] = useState("All")
+  const [loading, setLoading] = useState(true)
+    const [categories, setCategories] = useState<string[]>([])
+
+  useEffect(() => {
+    fetchInitialData()
+    fetchCategories()
+  }, [])
+   const fetchInitialData = async () => {
+    try {
+      setLoading(true)
+      const [booksRes] = await Promise.all([
+        axios.get(BOOK_API),
+      ])
+      setBooks(booksRes.data)
+    } catch (err) {
+      console.error("Error loading data", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  const fetchCategories = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/books/categories`);
+    const data = await res.json(); // expecting ["Fiction", "Sci-Fi", ...]
+    setCategories(data);
+  } catch (err) {
+    console.error("Failed to fetch categories:", err);
+  }
+};
+
+
 
   const filteredBooks = books.filter((book) => {
     const matchesSearch =
@@ -118,19 +105,29 @@ export function MemberBrowseBooksPage({ userRole, onNavigate, onLogout }: Member
                   )}
                 </div>
 
-                {/* Category Filter */}
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <Button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      variant={selectedCategory === cat ? "default" : "outline"}
-                      className="text-sm"
-                    >
-                      {cat}
-                    </Button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2">
+  {/* "All" button */}
+  <Button
+    key="All"
+    onClick={() => setSelectedCategory("All")}
+    variant={selectedCategory === "All" ? "default" : "outline"}
+    className="text-sm"
+  >
+    All
+  </Button>
+
+  {/* Dynamic category buttons */}
+  {categories.map((cat) => (
+    <Button
+      key={cat}
+      onClick={() => setSelectedCategory(cat)}
+      variant={selectedCategory === cat ? "default" : "outline"}
+      className="text-sm"
+    >
+      {cat}
+    </Button>
+  ))}
+</div>
               </div>
             </Card>
 

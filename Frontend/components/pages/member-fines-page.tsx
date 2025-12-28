@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Card } from "@/components/ui/card"
@@ -8,34 +9,87 @@ import { AlertCircle, CheckCircle } from "lucide-react"
 
 interface MemberFinesPageProps {
   userRole: string
+  userId: string
   onNavigate: (page: string) => void
   onLogout: () => void
 }
 
-const finesData = [
-  {
-    id: "F001",
-    bookTitle: "1984",
-    fineReason: "Overdue",
-    daysLate: 5,
-    fineAmount: 50,
-    paymentStatus: "Unpaid",
-    isPaid: false,
-  },
-  {
-    id: "F002",
-    bookTitle: "The Catcher in the Rye",
-    fineReason: "Overdue",
-    daysLate: 2,
-    fineAmount: 20,
-    paymentStatus: "Paid",
-    isPaid: true,
-  },
-]
+interface IssuedBook {
+  id: string
+  book: {
+    id: string
+    title: string
+    author: string
+    isbn: string
+    category: string
+  }
+  issueDate: string
+  dueDate: string
+  status: string
+  returnDate?: string
+}
 
-export function MemberFinesPage({ userRole, onNavigate, onLogout }: MemberFinesPageProps) {
-  const totalUnpaidFines = finesData.filter((f) => !f.isPaid).reduce((sum, f) => sum + f.fineAmount, 0)
-  const totalPaidFines = finesData.filter((f) => f.isPaid).reduce((sum, f) => sum + f.fineAmount, 0)
+interface Fine {
+  id: string
+  bookTitle: string
+  fineReason: string
+  daysLate: number
+  fineAmount: number
+  isPaid: boolean
+}
+
+export function MemberFinesPage({ userRole, userId, onNavigate, onLogout }: MemberFinesPageProps) {
+  const [issuedBooks, setIssuedBooks] = useState<IssuedBook[]>([])
+  const [fines, setFines] = useState<Fine[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch issued books
+  useEffect(() => {
+    if (!userId) return
+
+    const fetchIssuedBooks = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`http://localhost:5000/book-issue/user/${userId}`)
+        const data: IssuedBook[] = await res.json()
+        setIssuedBooks(data)
+      } catch (err) {
+        console.error("Failed to fetch issued books:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchIssuedBooks()
+  }, [userId])
+
+  // Calculate fines
+  useEffect(() => {
+    const calculateFine = (dueDate: string, returnDate?: string | null) => {
+      const due = new Date(dueDate)
+      const returned = returnDate ? new Date(returnDate) : new Date()
+      const diffTime = returned.getTime() - due.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays > 0 ? diffDays * 10 : 0 // 10 currency units per day
+    }
+
+    const fineList: Fine[] = issuedBooks.map((b) => {
+      const fineAmount = calculateFine(b.dueDate, b.returnDate)
+      return {
+        id: b.id,
+        bookTitle: b.book.title,
+        fineReason: fineAmount > 0 ? "Overdue" : "None",
+        daysLate: fineAmount > 0 ? Math.ceil((b.returnDate ? new Date(b.returnDate) : new Date()).getTime() - new Date(b.dueDate).getTime()) / (1000*60*60*24) : 0,
+        fineAmount,
+        isPaid: b.status === "RETURNED", // Mark as paid if book is returned
+      }
+    }).filter(f => f.fineAmount > 0) // only include books with fines
+
+    setFines(fineList)
+  }, [issuedBooks])
+
+  const totalUnpaidFines = fines.filter(f => !f.isPaid).reduce((sum, f) => sum + f.fineAmount, 0)
+  const totalPaidFines = fines.filter(f => f.isPaid).reduce((sum, f) => sum + f.fineAmount, 0)
 
   return (
     <div className="flex h-screen bg-background">
@@ -72,101 +126,51 @@ export function MemberFinesPage({ userRole, onNavigate, onLogout }: MemberFinesP
               </Card>
             </div>
 
-            {/* Unpaid Fines Table */}
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-foreground mb-4">Unpaid Fines</h2>
-              <Card className="border-0 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-secondary/50 border-b border-border hover:bg-secondary/50">
-                        <TableHead className="font-semibold">Book Title</TableHead>
-                        <TableHead className="font-semibold">Fine Reason</TableHead>
-                        <TableHead className="font-semibold text-center">Days Late</TableHead>
-                        <TableHead className="font-semibold text-right">Fine Amount</TableHead>
-                        <TableHead className="font-semibold text-center">Status</TableHead>
+            {/* Fines Table */}
+            <Card className="border-0 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-secondary/50 border-b border-border hover:bg-secondary/50">
+                      <TableHead className="font-semibold">Book Title</TableHead>
+                      <TableHead className="font-semibold">Fine Reason</TableHead>
+                      <TableHead className="font-semibold text-center">Days Late</TableHead>
+                      <TableHead className="font-semibold text-right">Fine Amount</TableHead>
+                      <TableHead className="font-semibold text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <p className="text-muted-foreground">Loading fines...</p>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {finesData.filter((f) => !f.isPaid).length > 0 ? (
-                        finesData
-                          .filter((f) => !f.isPaid)
-                          .map((fine) => (
-                            <TableRow
-                              key={fine.id}
-                              className="border-b border-border hover:bg-secondary/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">{fine.bookTitle}</TableCell>
-                              <TableCell>{fine.fineReason}</TableCell>
-                              <TableCell className="text-center">{fine.daysLate}</TableCell>
-                              <TableCell className="text-right font-semibold">₹{fine.fineAmount}</TableCell>
-                              <TableCell className="text-center">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                                  Unpaid
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
-                            <p className="text-muted-foreground">No unpaid fines.</p>
+                    ) : fines.length > 0 ? (
+                      fines.map(f => (
+                        <TableRow key={f.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                          <TableCell className="font-medium">{f.bookTitle}</TableCell>
+                          <TableCell>{f.fineReason}</TableCell>
+                          <TableCell className="text-center">{f.daysLate}</TableCell>
+                          <TableCell className="text-right font-semibold">₹{f.fineAmount}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${f.isPaid ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                              {f.isPaid ? "Paid" : "Unpaid"}
+                            </span>
                           </TableCell>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            </div>
-
-            {/* Paid Fines Table */}
-            <div>
-              <h2 className="text-xl font-bold text-foreground mb-4">Paid Fines</h2>
-              <Card className="border-0 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-secondary/50 border-b border-border hover:bg-secondary/50">
-                        <TableHead className="font-semibold">Book Title</TableHead>
-                        <TableHead className="font-semibold">Fine Reason</TableHead>
-                        <TableHead className="font-semibold text-center">Days Late</TableHead>
-                        <TableHead className="font-semibold text-right">Fine Amount</TableHead>
-                        <TableHead className="font-semibold text-center">Status</TableHead>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <p className="text-muted-foreground">No fines.</p>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {finesData.filter((f) => f.isPaid).length > 0 ? (
-                        finesData
-                          .filter((f) => f.isPaid)
-                          .map((fine) => (
-                            <TableRow
-                              key={fine.id}
-                              className="border-b border-border hover:bg-secondary/30 transition-colors"
-                            >
-                              <TableCell className="font-medium">{fine.bookTitle}</TableCell>
-                              <TableCell>{fine.fineReason}</TableCell>
-                              <TableCell className="text-center">{fine.daysLate}</TableCell>
-                              <TableCell className="text-right font-semibold">₹{fine.fineAmount}</TableCell>
-                              <TableCell className="text-center">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                  Paid
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
-                            <p className="text-muted-foreground">No paid fines.</p>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            </div>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
           </div>
         </main>
       </div>

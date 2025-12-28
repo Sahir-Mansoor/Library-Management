@@ -1,7 +1,7 @@
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/cretae-users.dto';
-import { Controller, Get, Post, Body, Param, Put, Delete} from '@nestjs/common';
-
+import { Controller, Get, Post, Body, Param, Put, Delete, NotFoundException} from '@nestjs/common';
+import { User } from './users.entity';
 
 @Controller('users') // <--- this defines the route prefix
 export class UsersController {
@@ -17,6 +17,7 @@ export class UsersController {
   findAll() {
     return this.usersService.findAll();
   }
+  
   @Put(':id')
   update(@Param('id') id: string, @Body() updateUserDto: Partial<CreateUserDto>) {
   return this.usersService.updateUser(id, updateUserDto);
@@ -26,5 +27,15 @@ export class UsersController {
     debugger;
     await this.usersService.deleteUser(id);
     return { message: 'User deleted successfully' };
+  }
+  @Get(':id')
+  async findOne(@Param('id') id: string): Promise<User> {
+    try {
+      const user = await this.usersService.findById(id);
+      return user;
+    } catch (err) {
+      // You can throw NestJS NotFoundException for proper HTTP 404
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
   }
 }

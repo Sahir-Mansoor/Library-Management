@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { CheckCircle } from "lucide-react"
+import { de } from "date-fns/locale"
 
 interface IssueBookPageProps {
   userRole: string
@@ -89,7 +90,7 @@ export function IssueBookPage({ userRole, onNavigate, onLogout }: IssueBookPageP
   const handleIssueBook = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.userId || !formData.bookId || !formData.dueDate) return
-
+    debugger;
     try {
       await axios.post(`${ISSUE_API}/issue`, {
         userId: formData.userId,
@@ -139,8 +140,8 @@ export function IssueBookPage({ userRole, onNavigate, onLogout }: IssueBookPageP
                     >
                       <option value="">Choose member...</option>
                       {members.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.user?.name}
+                        <option key={m.id} value={m.user?.id}>
+                          {m.user?.name} ({m.id})
                         </option>
                       ))}
                     </select>
